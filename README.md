@@ -1,6 +1,6 @@
 # DICOM Prehliadač - Zadanie 1
 
-**Autor:** [Tvoje Meno a Priezvisko]
+**Autor:** [Robert Cedzo]
 
 Táto aplikácia slúži na jednoduché prezeranie DICOM súborov. Zobrazuje hlavičku súboru podľa hierarchie (Pacient, Štúdia, Séria, Snímka), umožňuje zobrazenie obrazu s nastaviteľným oknom (Windowing) a ponúka možnosť uložiť anonymizovanú kópiu súboru.
 
