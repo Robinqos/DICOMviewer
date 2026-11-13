@@ -28,22 +28,21 @@ namespace DICOMviewer
             TagDataGrid.ItemsSource = ZoznamTagov;
         }
 
-        // --- 1. OTVORENIE SÚBORU A OŠETRENIE CHÝB ---
-        private void BtnOtvoriť_Click(object sender, RoutedEventArgs e)
+        private void BtnOtvorit_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog openFileDialog = new OpenFileDialog
+            var dialog = new OpenFileDialog
             {
-                Filter = "DICOM súbory (*.dcm)|*.dcm|Všetky súbory (*.*)|*.*",
-                Title = "Vyberte DICOM súbor"
+                Filter = "DICOM subory (*.dcm)|*.dcm|Vsetky subory (*.*)|*.*",
+                Title = "Vyberte DICOM subor"
             };
 
-            if (openFileDialog.ShowDialog() == true)
+            if (dialog.ShowDialog() == true)
             {
                 try
                 {
-                    _aktualnySubor = DicomFile.Open(openFileDialog.FileName);
-                    TxtSubor.Text = Path.GetFileName(openFileDialog.FileName);
-                    BtnAnonymizovať.IsEnabled = true;
+                    _aktualnySubor = DicomFile.Open(dialog.FileName);
+                    TxtSubor.Text = Path.GetFileName(dialog.FileName);
+                    BtnAnonymizovat.IsEnabled = true;
 
                     NaplnPrehlad();
                     NaplnTabulkuTagov();
@@ -51,76 +50,70 @@ namespace DICOMviewer
                 }
                 catch (Exception ex)
                 {
-                    VyčistiStav();
-                    MessageBox.Show($"Súbor sa nepodarilo načítať. Možno nejde o validný DICOM formát.\n\nDetail: {ex.Message}",
-                                    "Chyba pri načítaní", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    VycistiStav();
+                    MessageBox.Show($"Subor sa nepodarilo nacitat. Mozno nejde o validny DICOM format.\n\nDetail: {ex.Message}",
+                                    "Chyba pri nacitani", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
         }
 
-        private void VyčistiStav()
+        private void VycistiStav()
         {
             _aktualnySubor = null;
             _dicomObraz = null;
-            TxtSubor.Text = "Chyba pri načítaní";
+            TxtSubor.Text = "Chyba pri nacitani";
             ObrazDisplej.Source = null;
-            BtnAnonymizovať.IsEnabled = false;
+            BtnAnonymizovat.IsEnabled = false;
             ZoznamTagov.Clear();
             PnlPacient.Children.Clear();
             PnlStudia.Children.Clear();
             PnlSeria.Children.Clear();
             PnlSnimka.Children.Clear();
-            PnlWindowing.Visibility = Visibility.Collapsed; // Skryjeme tiahla
+            PnlWindowing.Visibility = Visibility.Collapsed;
             TxtUpozornenie.Visibility = Visibility.Collapsed;
         }
 
-        // --- 2. SPRACOVANIE OBRAZU A WINDOWING ---
         private void SpracujObraz()
         {
-            // 1. Vyčistenie obrazovky pred načítaním nového súboru
             _dicomObraz = null;
             ObrazDisplej.Source = null;
             TxtUpozornenie.Visibility = Visibility.Collapsed;
-            PnlWindowing.Visibility = Visibility.Collapsed; // Skryjeme posuvníky, kým nezistíme, či sa načítajú
+            PnlWindowing.Visibility = Visibility.Collapsed;
             PnlPredvolby.Visibility = Visibility.Collapsed;
 
             if (_aktualnySubor == null) return;
             var dataset = _aktualnySubor.Dataset;
 
-            // Súbor bez pixelov (napr. RTPLAN)
             if (!dataset.Contains(DicomTag.PixelData))
             {
-                TxtUpozornenie.Text = "Súbor neobsahuje obrazové dáta (napr. RTPLAN).\nZobrazila sa iba hlavička.";
+                TxtUpozornenie.Text = "Subor neobsahuje obrazove data (napr. RTPLAN).\nZobrazila sa iba hlavicka.";
                 TxtUpozornenie.Visibility = Visibility.Visible;
                 return;
             }
 
             try
             {
-                // Inicializácia obrázka
                 _dicomObraz = new DicomImage(dataset);
-
-                // TESTOVACÍ RENDER: Skúsime, či knižnica naozaj vie rozkódovať pixely (odhalí JPEG2000)
                 var testBitmap = _dicomObraz.RenderImage().AsWriteableBitmap();
 
-                // Ak test prešiel, môžeme zobraziť obrázok a POVOLIŤ posuvníky
                 ObrazDisplej.Source = testBitmap;
                 PnlWindowing.Visibility = Visibility.Visible;
 
                 string modalita = dataset.GetSingleValueOrDefault(DicomTag.Modality, "");
                 if (modalita == "CT")
+                {
                     PnlPredvolby.Visibility = Visibility.Visible;
+                }
 
                 InicializujOkno(dataset);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                // Ak testovací render zlyhal (napr. chýba kodek pre JPEG 2000)
                 _dicomObraz = null;
                 ObrazDisplej.Source = null;
-                PnlWindowing.Visibility = Visibility.Collapsed; // Tiahla ostanú skryté
+                PnlWindowing.Visibility = Visibility.Collapsed;
 
-                TxtUpozornenie.Text = "Obraz nie je možné zobraziť (komprimovaný alebo nepodporovaný formát).\nHlavička je dostupná nižšie.";
+                TxtUpozornenie.Text = "Obraz nie je mozne zobrazit (komprimovany alebo nepodporovany format).\nHlavicka je dostupna nizsie.";
                 TxtUpozornenie.Visibility = Visibility.Visible;
             }
         }
@@ -149,14 +142,12 @@ namespace DICOMviewer
 
             SliderWC.Value = Math.Round(wc);
             SliderWW.Value = Math.Round(ww);
-
             TxtWC.Text = Math.Round(wc).ToString();
             TxtWW.Text = Math.Round(ww).ToString();
 
             VykresliObraz(wc, ww);
         }
 
-        // Táto metóda sa volá LEN pri posúvaní tiahel
         private void VykresliObraz(double wc, double ww)
         {
             if (_dicomObraz == null) return;
@@ -169,10 +160,9 @@ namespace DICOMviewer
             }
             catch
             {
-                // Ak by zlyhalo prekreslenie počas posúvania
                 ObrazDisplej.Source = null;
-                PnlWindowing.Visibility = Visibility.Collapsed; // Schováme tiahla
-                TxtUpozornenie.Text = "Chyba pri prekresľovaní obrazu.";
+                PnlWindowing.Visibility = Visibility.Collapsed;
+                TxtUpozornenie.Text = "Chyba pri prekreslovani obrazu.";
                 TxtUpozornenie.Visibility = Visibility.Visible;
             }
         }
@@ -187,7 +177,7 @@ namespace DICOMviewer
             VykresliObraz(SliderWC.Value, SliderWW.Value);
         }
 
-        private void BtnMäkkéTkanivá_Click(object sender, RoutedEventArgs e)
+        private void BtnMakkeTkaniva_Click(object sender, RoutedEventArgs e)
         {
             SliderWC.Value = 40;
             SliderWW.Value = 400;
@@ -199,7 +189,6 @@ namespace DICOMviewer
             SliderWW.Value = 1600;
         }
 
-        // --- 3. PREHĽAD A FORMÁTOVANIE ---
         private void NaplnPrehlad()
         {
             if (_aktualnySubor == null) return;
@@ -212,10 +201,10 @@ namespace DICOMviewer
 
             PridajRiadok(PnlPacient, "Meno:", UpravMeno(ds.GetSingleValueOrDefault(DicomTag.PatientName, "")));
             PridajRiadok(PnlPacient, "ID:", ds.GetSingleValueOrDefault(DicomTag.PatientID, "-"));
-            PridajRiadok(PnlPacient, "Dátum nar.:", UpravDatum(ds.GetSingleValueOrDefault(DicomTag.PatientBirthDate, "-")));
+            PridajRiadok(PnlPacient, "Datum nar.:", UpravDatum(ds.GetSingleValueOrDefault(DicomTag.PatientBirthDate, "-")));
             PridajRiadok(PnlPacient, "Pohlavie:", ds.GetSingleValueOrDefault(DicomTag.PatientSex, "-"));
 
-            PridajRiadok(PnlStudia, "Dátum:", UpravDatum(ds.GetSingleValueOrDefault(DicomTag.StudyDate, "-")));
+            PridajRiadok(PnlStudia, "Datum:", UpravDatum(ds.GetSingleValueOrDefault(DicomTag.StudyDate, "-")));
             PridajRiadok(PnlStudia, "Popis:", ds.GetSingleValueOrDefault(DicomTag.StudyDescription, "-"));
             PridajRiadok(PnlStudia, "UID:", ds.GetSingleValueOrDefault(DicomTag.StudyInstanceUID, "-"));
 
@@ -223,7 +212,7 @@ namespace DICOMviewer
             PridajRiadok(PnlSeria, "Popis:", ds.GetSingleValueOrDefault(DicomTag.SeriesDescription, "-"));
             PridajRiadok(PnlSeria, "UID:", ds.GetSingleValueOrDefault(DicomTag.SeriesInstanceUID, "-"));
 
-            PridajRiadok(PnlSnimka, "Číslo:", ds.GetSingleValueOrDefault(DicomTag.InstanceNumber, "-"));
+            PridajRiadok(PnlSnimka, "Cislo:", ds.GetSingleValueOrDefault(DicomTag.InstanceNumber, "-"));
 
             string rozmery = "-";
             if (ds.Contains(DicomTag.Rows) && ds.Contains(DicomTag.Columns))
@@ -235,7 +224,7 @@ namespace DICOMviewer
 
         private void PridajRiadok(Panel panel, string popis, string hodnota)
         {
-            TextBlock tb = new TextBlock
+            var tb = new TextBlock
             {
                 Text = $"{popis} {hodnota}",
                 Margin = new Thickness(0, 2, 0, 2),
@@ -256,7 +245,6 @@ namespace DICOMviewer
             return $"{datum.Substring(6, 2)}.{datum.Substring(4, 2)}.{datum.Substring(0, 4)}";
         }
 
-        // --- 4. TABUĽKA VŠETKÝCH TAGOV ---
         private void NaplnTabulkuTagov()
         {
             ZoznamTagov.Clear();
@@ -269,9 +257,9 @@ namespace DICOMviewer
                 if (element.Tag == DicomTag.PixelData)
                 {
                     if (element is DicomElement de)
-                        hodnota = $"<binárne dáta: {de.Length} bajtov>";
+                        hodnota = $"<binarne data: {de.Length} bajtov>";
                     else
-                        hodnota = "<binárne dáta>";
+                        hodnota = "<binarne data>";
                 }
                 else if (element is DicomElement dicomElement && dicomElement.Count > 0)
                 {
@@ -292,19 +280,18 @@ namespace DICOMviewer
             }
         }
 
-        // --- 5. ANONYMIZÁCIA ---
-        private void BtnAnonymizovať_Click(object sender, RoutedEventArgs e)
+        private void BtnAnonymizovat_Click(object sender, RoutedEventArgs e)
         {
             if (_aktualnySubor == null) return;
 
-            SaveFileDialog saveFileDialog = new SaveFileDialog
+            var dialog = new SaveFileDialog
             {
-                Filter = "DICOM súbor (*.dcm)|*.dcm",
+                Filter = "DICOM subor (*.dcm)|*.dcm",
                 FileName = "anonymizovany_" + TxtSubor.Text,
-                Title = "Uložiť anonymizovanú kópiu"
+                Title = "Ulozit anonymizovanu kopiu"
             };
 
-            if (saveFileDialog.ShowDialog() == true)
+            if (dialog.ShowDialog() == true)
             {
                 try
                 {
@@ -319,14 +306,14 @@ namespace DICOMviewer
 
                     anonymnyDataset.AddOrUpdate(DicomTag.PatientIdentityRemoved, "YES");
 
-                    DicomFile anonymnySubor = new DicomFile(anonymnyDataset);
-                    anonymnySubor.Save(saveFileDialog.FileName);
+                    var anonymnySubor = new DicomFile(anonymnyDataset);
+                    anonymnySubor.Save(dialog.FileName);
 
-                    MessageBox.Show("Anonymizovaná kópia bola úspešne uložená.", "Úspech", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Anonymizovana kopia bola uspesne ulozena.", "Uspech", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Chyba pri ukladaní anonymizovaného súboru:\n{ex.Message}", "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Chyba pri ukladani anonymizovaneho suboru:\n{ex.Message}", "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
